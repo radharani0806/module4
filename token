@@ -1,0 +1,63 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.18;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+import "hardhat/console.sol";
+
+contract BeautyProductToken is ERC20, Ownable {
+    event CosmeticRedeemed(address indexed donorAddress, string cosmeticName, uint256 cosmeticCost);
+    event TokensRewarded(address indexed recipient, uint256 sum);
+
+    mapping(string => uint256) public cosmeticCosts;
+    mapping(address => string) public donorSelectedCosmetics;
+
+    string[] public productOptions;
+
+    constructor(address initialOwner) ERC20("DegenToken", "DGN") Ownable(initialOwner) {
+        
+        cosmeticCosts["Lipstick"] = 30;
+        cosmeticCosts["Eyeshadow"] = 20;
+        cosmeticCosts["Perfume"] = 50;
+        cosmeticCosts["Foundation"] = 25;
+
+        
+        productOptions.push("Lipstick");
+        productOptions.push("Eyeshadow");
+        productOptions.push("Perfume");
+        productOptions.push("Foundation");
+    }
+
+    function mint(address to, uint256 sum) public onlyOwner {
+        _mint(to, sum);
+    }
+
+    function burn(uint256 sum) public {
+        require(sum > 0, "The sum to destroy must be greater than zero");
+        require(balanceOf(msg.sender) >= sum, "Insufficient funds for token destruction");
+        _burn(msg.sender, sum);
+    }
+
+    function redeemCosmetic(string memory cosmeticName) public payable {
+        uint256 cosmeticCost = cosmeticCosts[cosmeticName];
+        require(cosmeticCost > 0, "Invalid cosmetic selected");
+        require(balanceOf(msg.sender) >= cosmeticCost, "Insufficient funds for cosmetic redemption");
+        _burn(msg.sender, cosmeticCost);
+        donorSelectedCosmetics[msg.sender] = cosmeticName;
+        emit CosmeticRedeemed(msg.sender, cosmeticName, cosmeticCost);
+    }
+
+    function transferTokens(address donor, uint256 sum) external {
+        require(donor != address(0), "Invalid donor address provided");
+        require(balanceOf(msg.sender) >= sum, "Insufficient funds for token transfer");
+        _transfer(msg.sender, donor, sum);
+    }
+
+    function rewardTokens(address recipient, uint256 sum) external onlyOwner {
+        require(recipient != address(0), "Invalid recipient address provided");
+        require(sum > 0, "Invalid reward sum");
+        _mint(recipient, sum);
+        emit TokensRewarded(recipient, sum);
+    }
+}
